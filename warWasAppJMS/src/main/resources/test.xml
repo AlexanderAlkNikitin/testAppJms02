@@ -45,7 +45,7 @@
         <property name="receiveTimeout" value="20000"/>
         <property name="messageConverter" ref="oxmMessageConverter"/>
         <property name="sessionTransacted" value="true"/>
-        <property name="sessionAcknowledgeModeName" value="AUTO_ACKNOWLEDGE"/>
+        <property name="sessionAcknowledgeModeName" value="CLIENT_ACKNOWLEDGE"/>
     </bean>
     <bean id="jmsTopicTemplate"
           class="org.springframework.jms.core.JmsTemplate">

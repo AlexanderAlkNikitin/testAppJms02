@@ -125,14 +125,20 @@ public class FirstScenarioController {
 
     @RequestMapping(value = "/fifthScenario")
     @Transactional(rollbackFor = Exception.class)
-    public String fifthScenario() throws Exception {
+    public String fifthScenario() throws InterruptedException {
 
         LOG.info("Start test rollBack");
         OrderActivatedCard orderActivatedCard = getOrderActivatedCard();
         jmsActivateCardServiceSender.sendObjectXmlToQueue(orderActivatedCard);
-        OrderActivatedCard forwardingOrder = jmsActivateCardServiceReceiver.sendAfterReceiveRollBack();
         Thread.sleep(1000);
-        OrderActivatedCard forwardedOrder = jmsActivateCardServiceReceiver.receiveOrderActivateCardFromOrder();
+        try {
+            OrderActivatedCard forwardingOrder = jmsActivateCardServiceReceiver.sendAfterReceiveRollBack();
+        } catch (Exception e) {
+            e.printStackTrace();
+            OrderActivatedCard forwardedOrder = jmsActivateCardServiceReceiver.receiveOrderActivateCardFromOrder();
+        }
+
+
         return "index";
     }
 
