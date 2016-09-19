@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:jee="http://www.springframework.org/schema/jee"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/jee
+       http://www.springframework.org/schema/jee/spring-jee.xsd
+       http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+
+    <context:annotation-config/>
+    <context:component-scan base-package="com.anikitin.service"/>
+    <context:component-scan base-package="com.anikitin.web"/>
+    <tx:annotation-driven/>
+
+    <bean id="connectionFactory" class="org.springframework.jms.connection.SingleConnectionFactory">
+        <property name="targetConnectionFactory" ref="jmsConnectionFactoryTopic"/>
+        <property name="clientId" value="durableTOPIC"/>
+    </bean>
+    <jee:jndi-lookup id="defaultDestination" jndi-name="jms/INPUT"/>
+    <bean id="des" class="com.ibm.mq.jms.MQQueue" scope="prototype">
+        <constructor-arg ref="defaultDestination"/>
+        <property name="baseQueueName" value="INPUT"/>
+    </bean>
+    <jee:jndi-lookup id="optionalQueue" jndi-name="jms/optionalQueue"/>
+
+    <bean id="optionalDestination" class="com.ibm.mq.jms.MQQueue">
+        <constructor-arg ref="optionalQueue"/>
+    </bean>
+    <bean id="topDurable" class="com.ibm.mq.jms.MQTopic">
+        <constructor-arg ref="topicD"/>
+    </bean>
+    <bean id="jmsQueueTemplate"
+          class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="jmsConnectionFactory"/>
+        <property name="destinationResolver" ref="jmsDestResolver"/>
+        <!--<property name="defaultDestination" ref="des"/>-->
+        <property name="pubSubDomain" value="false"/>
+        <property name="receiveTimeout" value="20000"/>
+        <property name="messageConverter" ref="oxmMessageConverter"/>
+        <property name="sessionTransacted" value="true"/>
+        <property name="sessionAcknowledgeModeName" value="AUTO_ACKNOWLEDGE"/>
+    </bean>
+    <bean id="jmsTopicTemplate"
+          class="org.springframework.jms.core.JmsTemplate">
+        <property name="connectionFactory" ref="jmsConnectionFactoryTopic"/>
+        <property name="destinationResolver" ref="jmsDestResolver"/>
+        <!--<property name="defaultDestination" ref="topic"/>-->
+        <property name="pubSubDomain" value="true"/>
+        <property name="receiveTimeout" value="20000"/>
+        <property name="deliveryPersistent" value="true"/>
+
+        <property name="messageConverter" ref="oxmMessageConverter"/>
+    </bean>
+    <!--<bean id="internalJmsQueueConnectionFactory"-->
+          <!--class="org.springframework.jndi.JndiObjectFactoryBean">-->
+        <!--<property name="jndiName" value="jms/Queue"/>-->
+        <!--<property name="proxyInterface" value="javax.jms.QueueConnectionFactory"/>-->
+        <!--<property name="lookupOnStartup" value="false"/>-->
+
+    <!--</bean>-->
+
+    <bean id="jmsDestResolver"
+          class=" org.springframework.jms.support.destination.JndiDestinationResolver">
+    </bean>
+
+    <jee:jndi-lookup id="jmsConnectionFactory" jndi-name="jms/Queue"/>
+    <jee:jndi-lookup id="jmsConnectionFactoryTopic" jndi-name="jms/topicQueue"/>
+
+    <jee:jndi-lookup id="topic" jndi-name="jms/TOPICIN"/>
+    <jee:jndi-lookup id="topicD" jndi-name="jms/durableTOPIC"/>
+
+    <bean id="oxmMessageConverter" class="org.springframework.jms.support.converter.MarshallingMessageConverter">
+        <property name="marshaller" ref="marshaller"/>
+        <property name="unmarshaller" ref="marshaller"/>
+    </bean>
+
+    <!--<bean id="transactionManager" class="org.springframework.transaction.jta.JtaTransactionManager">-->
+        <!--&lt;!&ndash;<property name="connectionFactory" ref="jmsConnectionFactory"/>&ndash;&gt;-->
+        <!--&lt;!&ndash;<property name="nestedTransactionAllowed" value="true"/>&ndash;&gt;-->
+        <!--<property name="autodetectTransactionManager" value="false"/>-->
+        <!--&lt;!&ndash;<property name="transactionManager" ref="WASJtaTxMgr"/>&ndash;&gt;-->
+
+    <!--</bean>-->
+    <!--<bean id="WASJtaTxMgr" class="org.springframework.transaction.jta.WebSphereUowTransactionManager" />-->
+
+    <bean id="transactionManager" class="org.springframework.jms.connection.JmsTransactionManager">
+        <property name="connectionFactory" ref="jmsConnectionFactory"/>
+        <property name="nestedTransactionAllowed" value="true"/>
+
+
+    </bean>
+
+    <bean id="marshaller" class="org.springframework.oxm.jaxb.Jaxb2Marshaller">
+        <property name="classesToBeBound">
+            <list>
+                <value>generated.Card</value>
+                <value>generated.ObjectFactory</value>
+                <value>generated.Person</value>
+                <value>generated.SolveType</value>
+                <value>generated.StatusType</value>
+            </list>
+        </property>
+        <property name="schema" value="classpath:OrderActivateCard.xsd"/>
+    </bean>
+    <bean id="jmsContainer" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="jmsConnectionFactoryTopic"/>
+        <property name="destination" ref="topic"/>
+        <property name="messageListener" ref="jmsActivateCardServiceReceiverListener"/>
+        <property name="messageConverter" ref="oxmMessageConverter"/>
+    </bean>
+    <bean id="jmsContainer2" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="jmsConnectionFactoryTopic"/>
+        <property name="destination" ref="topic"/>
+        <property name="messageListener" ref="jmsActivateCardServiceReceiverOptionalListener"/>
+        <property name="messageConverter" ref="oxmMessageConverter"/>
+    </bean>
+    <bean id="jmsContainer3" class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+        <property name="connectionFactory" ref="jmsConnectionFactoryTopic"/>
+        <property name="destination" ref="topicD"/>
+        <property name="subscriptionDurable" value="true"/>
+        <!--<property name="sessionAcknowledgeModeName" value="AUTO_ACKNOWLEDGE"/>-->
+        <!--<property name="clientId" value="durTopic"/>-->
+        <property name="durableSubscriptionName" value="durTopic"/>
+        <!--<property name="pubSubDomain" value="true"/>-->
+        <property name="receiveTimeout" value="2000"/>
+        <property name="replyPubSubDomain" value="true"/>
+        <property name="pubSubDomain" value="true"/>
+        <property name="destinationResolver" ref="jmsDestResolver"/>
+        <property name="messageListener" ref="jmsActivateCardServiceReceiverDurableListener"/>
+        <property name="messageConverter" ref="oxmMessageConverter"/>
+
+    </bean>
+</beans>
